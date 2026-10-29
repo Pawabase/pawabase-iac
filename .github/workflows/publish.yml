@@ -1,32 +1,80 @@
-name: publish
-# Publishes to PyPI when you push a tag like v0.1.0 (the tag must match pawabase_iac/_version.py).
+name: Release on Tag
+
 on:
   push:
-    tags: ["v*"]
+    tags:
+      - 'pawabase-iac-v*'  # IaC releases: pawabase-iac-v0.1.1
 
 jobs:
-  test:
+  release:
+    name: Build and Publish to PyPI
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.12" }
-      - run: pip install -e '.[test]'
-      - run: pytest -q
 
-  publish:
-    needs: test
-    runs-on: ubuntu-latest
-    environment: pypi
     permissions:
-      id-token: write
+      contents: read        # actions/checkout needs repo read access
+      id-token: write       # for OIDC (trusted publishing), used when PYPI_TOKEN is not set
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.12" }
-      - name: The tag matches the package version
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from tag
+        id: version
         run: |
-          version=$(python -c "import re,pathlib;print(re.search(r'\"([^\"]+)\"', pathlib.Path('pawabase_iac/_version.py').read_text()).group(1))")
-          test "v$version" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} != v$version"; exit 1; }
-      - run: pip install build && python -m build
-      - uses: pypa/gh-action-pypi-publish@release/v1
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#pawabase-iac-v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Releasing pawabase-iac v$VERSION"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      # The version is read from pawabase_iac/_version.py (hatch). The tag must agree
+      # with it, or PyPI publishes whatever the file says and reports success.
+      - name: The tag and _version.py must agree
+        run: |
+          TAG_VERSION="${{ steps.version.outputs.version }}"
+          MOD_VERSION=$(python -c "import re,pathlib; print(re.search(r'__version__.*?\"(.*?)\"', pathlib.Path('pawabase_iac/_version.py').read_text()).group(1))")
+          if [ "$TAG_VERSION" != "$MOD_VERSION" ]; then
+            echo "::error::Tag says $TAG_VERSION, pawabase_iac/_version.py says $MOD_VERSION."
+            exit 1
+          fi
+          echo "both say $MOD_VERSION"
+
+      - name: Clean Old Builds
+        run: |
+          rm -rf dist build *.egg-info
+
+      - name: Setup Virtual Environment
+        run: uv venv
+
+      - name: Install dependencies
+        run: uv pip install -e ".[test]"
+
+      - name: Run tests
+        run: uv run pytest tests/ -q --tb=short
+
+      - name: Build the package
+        run: uv build
+
+      # Prefers an API token when the PYPI_TOKEN secret is set; falls back to OIDC
+      # trusted publishing. Passing an empty --token is a hard failure, so the
+      # secret must not be forwarded blindly.
+      - name: Publish to PyPI
+        env:
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          if [ -n "$PYPI_TOKEN" ]; then
+            uv publish --token "$PYPI_TOKEN"
+          else
+            uv publish
+          fi
