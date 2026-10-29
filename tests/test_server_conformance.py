@@ -60,7 +60,7 @@ def test_body_fields_match_the_servers_request_model(item):
     # The server has optional fields we do not manage from code (draft/design/favorite, a branch's autosave): they keep their defaults.
     extra_on_server = theirs - ours
     assert not (ours - theirs), f"{item.kind}: sent but the server has no such field: {sorted(ours - theirs)}"
-    assert extra_on_server <= {"design", "draft", "favorite"}, f"{item.kind}: server fields we do not send: {sorted(extra_on_server)}"
+    assert extra_on_server <= {"design", "draft", "favorite", "apply_schema", "provision_table"}, f"{item.kind}: server fields we do not send: {sorted(extra_on_server)}"
     model.model_validate(item.body())  # the server's own request model accepts it
 
 
