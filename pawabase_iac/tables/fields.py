@@ -89,6 +89,19 @@ def Object(name: str, *, fields: list[dict[str, Any]] | None = None, **common: A
     return _make("object")(name, fields=fields or [], **common)
 
 
+def Embed(model: str, *fields: str) -> dict[str, Any]:
+    """Fill a vector field from other fields of the same table, with an embedding model of the environment, on every write: ``Embed("embed", "title", "body")``."""
+    return {"model": model, "from": list(fields)}
+
+
+def Vector(name: str, *, dimensions: int, embed: dict[str, Any] | None = None, **common: Any):
+    """A list of numbers for searching by meaning (pgvector). ``dimensions`` is what the embedding model returns.
+
+        Vector("embedding", dimensions=1536, embed=Embed("embed", "title", "body"))
+    """
+    return _make("vector")(name, dimensions=dimensions, embed=embed, **common)
+
+
 def Ref(name: str, *, schema: Any, **common: Any):
     """A value shaped by a :class:`~pawabase_iac.Schema` (pass the Schema or its name)."""
     return _make("ref")(name, schema=schema, **common)
@@ -144,6 +157,7 @@ def Index(
     unique: bool = False,
     where: list[dict[str, Any]] | None = None,
     method: str = "btree",
+    metric: str = "cosine",
     concurrent: bool = False,
     note: str = "",
 ) -> dict[str, Any]:
@@ -152,12 +166,15 @@ def Index(
         Index("project_id", "done")
         Index("tenant_id", Desc("created_at"), where=[Where("deleted_at", "is_null")])
         Index("email", unique=True, name="uniq_email")
+        Index("embedding", method="hnsw", metric="cosine")   # nearest-neighbour search on a Vector field
     """
     cols = [{"name": c} if isinstance(c, str) else dict(c) for c in columns]
     label = "_".join(c["name"] for c in cols)[:26]
     spec: dict[str, Any] = {"name": name or f"idx_{label}", "columns": cols, "unique": unique, "where": list(where or [])}
     if method != "btree":
         spec["method"] = method  # the server leaves the default out of what it returns
+    if method in ("hnsw", "ivfflat"):
+        spec["metric"] = metric
     if concurrent:
         spec["concurrent"] = True
     if note:

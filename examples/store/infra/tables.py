@@ -2,11 +2,10 @@ from infra.policies import big_spenders, mine, staff, staff_or_mine, verified
 
 from pawabase_iac import (
     Allow, Array, BelongsTo, Boolean, Desc, Email, HasMany, Index, Integer, Number, Object, RateLimit, Ref, Schema, String, Table, Text,
-    Transformer, Where, crud, read_only,
+    Where, crud, read_only,
 )
 
 address = Schema("Address", fields=[String("line1", required=True), String("city", required=True), String("postcode", pattern=r"^[A-Z0-9 ]{3,10}$")])
-public_product = Transformer("public_product", omit=["cost_price", "supplier"], case="camel")
 
 customers = Table(
     "customers",
@@ -38,7 +37,6 @@ products = Table(
         String("status", enum=["draft", "live", "retired"], default="draft"),
     ],
     operations={**read_only("public"), "create": Allow(staff), "update": Allow(staff), "delete": Allow(staff)},
-    transformer=public_product,
     cache_ttl=60,
     indexes=[Index("status", Desc("price"), where=[Where("active", "=", True)])],
     realtime=True,

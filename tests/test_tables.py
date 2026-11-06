@@ -1,5 +1,5 @@
 from pawabase_iac import (
-    P, Policy, Allow, Array, BelongsTo, Boolean, Desc, Index, Integer, Where, Number, Object, Ref, Schema, String, Table, Transformer, crud, read_only,
+    P, Policy, Allow, Array, BelongsTo, Boolean, Desc, Index, Integer, Where, Number, Object, Ref, Schema, String, Table, crud, read_only,
 )
 from pawabase_iac.validate import check
 
@@ -36,29 +36,20 @@ def test_table_problems(project):
 
 def test_references_are_checked_across_definitions(project):
     Table("orders", fields=[String("customer_id")], operations={"list": Allow("ghost_policy")},
-          relations=[BelongsTo("customer", "customers", "customer_id")], transformer="ghost_t")
+          relations=[BelongsTo("customer", "customers", "customer_id")])
     Table("docs", fields=[Ref("body", schema="GhostSchema")])
     text = "\n".join(map(str, check(project.items)))
     assert "'ghost_policy' is not defined" in text
     assert "'customers' is not defined" in text
-    assert "'ghost_t' is not defined" in text
     assert "'GhostSchema' is not defined" in text
 
 
 def test_objects_work_as_references(project):
     mine = Policy("mine", P.owner())
     Schema("Address", fields=[String("city")])
-    shape = Transformer("public", omit=["secret"], case="camel")
-    Table("a", fields=[String("owner_id")], operations=crud(mine), transformer=shape)
+    Table("a", fields=[String("owner_id")], operations=crud(mine))
     assert check(project.items) == []
-    assert project.items[-1].body()["transformer"] == "public"
     assert project.items[-1].body()["operations"]["list"]["policy"] == "mine"
-
-
-def test_transformer_steps(project):
-    t = Transformer("t", omit=["a"], set={"b": "{{ record.a }}"}, rename={"c": "d"}, case="snake")
-    assert t.body()["definition"] == {"omit": ["a"], "set": {"b": "{{ record.a }}"}, "rename": {"c": "d"}, "case": "snake"}
-    assert Transformer("empty").problems()
 
 
 def test_index_builders_and_checks(project):

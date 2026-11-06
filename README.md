@@ -79,15 +79,56 @@ students = Table(
 | Kind | Class | What you set |
 |---|---|---|
 | Table | `Table` (also `Resource`) | typed fields, operations with a policy each, relations (`BelongsTo`, `HasMany`), indexes (`Index`, `Desc`, `Where`), rate limit, caching, owner field, realtime, event capture |
-| Fields | `String`, `Text`, `Integer`, `Number`, `Boolean`, `DateTime`, `Date`, `UUID`, `ULID`, `Email`, `URL`, `JSON`, `Array`, `Object`, `Ref` | `required`, `nullable`, `default`, `unique`, `indexed`, `enum`, `min_length`/`max_length`, `minimum`/`maximum`, `pattern`, `read_only`, `write_only`, nested fields and items |
-| Shapes | `Schema`, `Transformer` | reusable data shapes; omit / pick / set / rename / case on the way out |
+| Fields | `String`, `Text`, `Integer`, `Number`, `Boolean`, `DateTime`, `Date`, `UUID`, `ULID`, `Email`, `URL`, `JSON`, `Array`, `Object`, `Ref`, `Vector` | `required`, `nullable`, `default`, `unique`, `indexed`, `enum`, `min_length`/`max_length`, `minimum`/`maximum`, `pattern`, `read_only`, `write_only`, nested fields and items |
+| Shapes | `Schema` | reusable data shapes for fields and routes |
 | Access | `Role`, `Policy` | roles and their permission names; policies as Python expressions |
 | Logic | `Flow`, `Route` | a graph of blocks; a custom HTTP endpoint that runs a flow |
 | Events | `Subscription`, `Schedule`, `Webhook`, `InboundHook` | react to events, run on cron or an interval, call out, be called (signed) |
 | Files | `Bucket` | per-action access policies, accepted types, size, signed URLs, image transforms, caching |
+| AI | `Connection`, `KnowledgeBase`, `Agent`, `tools` | agents that use your tables, flows, documents and apps; the services they reach; documents they answer from |
 | Email | `MailTemplate` | subject / html / text with `{{ variables }}`, status, categories |
 
 Secrets are never written in code: `Webhook(..., secret=env("ERP_SECRET"))` reads the variable when you deploy and refuses to deploy if it is unset.
+
+## Agents
+
+An agent is AI that uses your tables, flows, documents and apps to get things done, within limits you set. Everything it needs is a definition, so
+the whole thing is reviewed, validated and deployed like the rest of your system.
+
+```python
+from pawabase_iac import Agent, Connection, Embed, Flow, Index, KnowledgeBase, P, Policy, String, Table, Text, Vector, blocks, crud, tools
+
+mine = Policy("mine", P.owner("user_id"))
+orders = Table("orders", fields=[String("user_id"), String("status")], operations=crud(mine), owner_field="user_id")
+
+refund = Flow("refund_order")
+refund.chain(blocks.trigger.manual(), blocks.response.return_(body={"ok": True}))
+
+# Where it looks things up and what it can reach. `secret` names an environment secret; the key itself never sits in code.
+help_articles = KnowledgeBase("help", embedding_model="embed", policy="authenticated")
+github = Connection.mcp("github", "https://api.githubcopilot.com/mcp/", secret="GITHUB_TOKEN")
+
+support = Agent(
+    "support", model="chat", policy="authenticated", run_as="caller",
+    instructions="You help customers with their orders. Be brief.",
+    knowledge=[help_articles],
+    tools=[
+        tools.table(orders, ["list", "get"]),                    # under the table's own policies, as the person asking
+        tools.flow(refund, description="Refund an order"),       # changes wait for a person unless approval="auto"
+        tools.mcp(github, only=["search_issues"]),
+        tools.web_search(),                                       # DuckDuckGo, no key
+    ],
+    limits={"max_steps": 8, "max_cost": 0.5},
+)
+
+# Search a table by meaning: a Vector field, filled in from other fields on every write.
+Table("articles", fields=[String("title"), Text("body"), Vector("embedding", dimensions=1536, embed=Embed("embed", "title", "body"))],
+      indexes=[Index("embedding", method="hnsw", metric="cosine")])
+```
+
+`tools` has `table`, `flow`, `web_fetch`, `web_search`, `notion`, `mcp`, `agent`, `code`, `image`, `x_search` and `tool_search`. `Connection` has `notion`, `mcp` (bearer by
+default; `header=`, `scheme=` and `auth="basic"` with `username=` cover apps that sign in differently) and `web_search` (Tavily, Exa or DuckDuckGo). Documents go into a knowledge base with the
+SDKs' `ai.knowledge.add`, or Studio: they are data, not definitions. Flows call agents and search knowledge with `blocks.ai.agent(...)` and `blocks.ai.knowledge_search(...)`.
 
 ## Policies
 
@@ -126,7 +167,7 @@ big.false >> done
 
 `a >> b` follows the `next` handle; `a.true >> b`, `a.error >> b` or `a.on("done") >> b` follow others. `flow.chain(a, b, c)` adds and links in one go; `flow["id"]` returns a node you named with `.named("id")`.
 
-All **69 flow blocks** the server knows are available as typed functions, one module per family, every option documented with its default, limits and allowed values: `auth` · `cache` · `control` (if, switch, foreach, while, retry, timeout, set, merge, delay, stop) · `crypto` · `db` · `error` · `event` · `flow` · `http` · `json` · `log` · `mail` · `math` · `metric` · `policy` · `queue` · `realtime` · `resource` · `response` · `secret` · `storage` · `time` · `transform` (map, filter, sort, group, unique, flatten, slice, batch, pick, rename, summarize, template) · `trigger` (http, event, schedule, webhook, resource, job, realtime, manual) · `util` · `validate` · `webhook`.
+All **76 flow blocks** the server knows are available as typed functions, one module per family, every option documented with its default, limits and allowed values: `auth` · `cache` · `control` (if, switch, foreach, while, retry, timeout, set, merge, delay, stop) · `crypto` · `db` · `error` · `event` · `flow` · `http` · `json` · `log` · `mail` · `math` · `metric` · `policy` · `queue` · `realtime` · `resource` · `response` · `secret` · `storage` · `time` · `transform` (map, filter, sort, group, unique, flatten, slice, batch, pick, rename, summarize, template) · `trigger` (http, event, schedule, webhook, resource, job, realtime, manual) · `util` · `validate` · `webhook`.
 
 ### The rules the server enforces (and `validate` checks)
 
@@ -211,7 +252,7 @@ pawabase_iac/
   core/          base Definition, env(), the registry
   expr/          P (policy conditions) and ctx (flow templates)
   tables/        fields, Table, Schema, indexes, relations
-  policies/      Policy, Transformer, condition checks
+  policies/      Policy, condition checks
   access/        Role
   flows/         Flow builder, graph checks, layout, catalogue.py and blocks/ (generated)
   api/           Route

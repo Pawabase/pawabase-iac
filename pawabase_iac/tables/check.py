@@ -7,8 +7,10 @@ from ..core.base import IDENT
 
 FIELD_TYPES = (
     "string", "text", "integer", "number", "boolean", "datetime", "date", "uuid", "ulid",
-    "email", "url", "json", "array", "object", "ref",
+    "email", "url", "json", "array", "object", "ref", "vector",
 )  # fmt: skip
+#: pgvector stores up to 16,000 dimensions in a column.
+MAX_VECTOR_DIMENSIONS = 16000
 OPERATIONS = ("list", "get", "create", "update", "delete")
 RESERVED_TABLE_NAMES = frozenset({"auth", "storage", "rest", "platform", "health", "realtime"})
 TABLE_NAME = re.compile(r"^[a-z][a-z0-9_]{0,62}$")
@@ -34,6 +36,22 @@ def field_problems(specs: list[dict[str, Any]], path: str = "fields") -> list[st
             out.append(f"{where} ({name}): unknown type {kind!r} (one of {', '.join(FIELD_TYPES)})")
         if kind == "ref" and not spec.get("schema"):
             out.append(f"{where} ({name}): a ref field names a schema")
+        if kind == "vector":
+            dimensions = spec.get("dimensions")
+            if not isinstance(dimensions, int) or isinstance(dimensions, bool) or not 1 <= dimensions <= MAX_VECTOR_DIMENSIONS:
+                out.append(f"{where} ({name}): a vector field needs dimensions, a whole number from 1 to {MAX_VECTOR_DIMENSIONS}")
+            embed = spec.get("embed")
+            if embed is not None:
+                sources = embed.get("from") if isinstance(embed, dict) else None
+                if not isinstance(embed, dict) or not embed.get("model"):
+                    out.append(f"{where} ({name}): embed names a model: Embed(\"embed\", \"title\")")
+                elif not isinstance(sources, list) or not sources:
+                    out.append(f"{where} ({name}): embed lists the fields to read, such as Embed(\"embed\", \"title\")")
+                else:
+                    text_fields = {s.get("name") for s in specs if isinstance(s, dict) and s.get("type", "string") in ("string", "text")}
+                    for source in sources:
+                        if source not in text_fields:
+                            out.append(f"{where} ({name}): embed reads {source!r}, which is not a string or text field of this table")
         if kind == "array" and "items" in spec:
             out += field_problems([{**spec["items"], "name": "item"}], f"{where}.items")
         if kind == "object":
@@ -87,8 +105,13 @@ def index_problems(indexes: list[dict[str, Any]], known: set[str]) -> list[str]:
         if len(set(columns)) != len(columns):
             out.append(f"index {name}: a column is listed twice")
         method = spec.get("method", "btree")
-        if method not in ("btree", "hash", "brin"):
-            out.append(f"index {name}: method is btree, hash or brin")
+        if method not in ("btree", "hash", "brin", "hnsw", "ivfflat"):
+            out.append(f"index {name}: method is btree, hash, brin, hnsw or ivfflat")
+        if method in ("hnsw", "ivfflat"):
+            if len(columns) != 1:
+                out.append(f"index {name}: a {method} index covers one vector column")
+            if spec.get("metric", "cosine") not in ("cosine", "l2", "ip"):
+                out.append(f"index {name}: metric is cosine, l2 or ip")
         if method != "btree" and spec.get("unique"):
             out.append(f"index {name}: only a btree index can be unique")
         if method == "hash" and len(columns) > 1:

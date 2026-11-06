@@ -33,7 +33,6 @@ class Table(Definition):
     primary_key: str = "id"
     id_type: Literal["ulid", "uuid", "integer"] = "ulid"
     relations: list[dict[str, Any]] = field(default_factory=list)
-    transformer: Any = None
     cache_ttl: int = 0
     rate_limit: dict[str, int] = field(default_factory=dict)
     events: bool = True

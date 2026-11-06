@@ -29,7 +29,10 @@ FLOW_REFERENCES: dict[tuple[str, str], str] = {
     ("queue.flow", "flow"): "flows",
     ("mail.send", "template"): "mail-templates",
     ("policy.check", "policy"): "policies",
-    ("transform.map", "transformer"): "transformers",
+    ("ai.search", "resource"): "resources",
+    ("ai.answer", "resource"): "resources",
+    ("ai.agent", "agent"): "agents",
+    ("ai.knowledge.*", "base"): "knowledge-bases",
     ("trigger.webhook", "hook"): "inbound-hooks",
 }
 
@@ -59,7 +62,7 @@ def check(items: list[Definition], existing: dict[str, set[str]] | None = None) 
     granted = {p for role in defined_roles.values() for p in getattr(role, "permissions", [])}
     #: Permissions can only be judged when every role is one this project defines; a role made elsewhere may grant more.
     judge_permissions = bool(defined_roles) and known_roles == set(defined_roles)
-    known = {kind: _known(items, existing, kind) for kind in ("flows", "schemas", "transformers", "resources", "buckets", "mail-templates", "inbound-hooks")}
+    known = {kind: _known(items, existing, kind) for kind in ("flows", "schemas", "resources", "buckets", "mail-templates", "inbound-hooks", "connections", "knowledge-bases", "agents")}
     known["policies"] = _known(items, existing, "policies") | BUILTIN_POLICIES
 
     def need(item: Definition, what: str, value: Any, kind: str) -> None:
@@ -83,8 +86,6 @@ def check(items: list[Definition], existing: dict[str, set[str]] | None = None) 
             for operation, settings in (body.get("operations") or {}).items():
                 for name in referenced_policies((settings or {}).get("policy")):
                     need(item, f"operations.{operation}.policy", name, "policies")
-            if isinstance(body.get("transformer"), str):
-                need(item, "transformer", body["transformer"], "transformers")
             for relation in body.get("relations") or []:
                 need(item, f"relation {relation.get('name')!r} resource", relation.get("resource"), "resources")
             for spec in body.get("fields") or []:
@@ -101,8 +102,30 @@ def check(items: list[Definition], existing: dict[str, set[str]] | None = None) 
             need(item, "response_schema", body.get("response_schema"), "schemas")
             for name in referenced_policies(body.get("policy")):
                 need(item, "policy", name, "policies")
-            if isinstance(body.get("transformer"), str):
-                need(item, "transformer", body["transformer"], "transformers")
+        elif item.kind == "knowledge-bases":
+            for name in referenced_policies(body.get("policy")):
+                need(item, "policy", name, "policies")
+        elif item.kind == "agents":
+            for key in ("policy", "approval_policy"):
+                for name in referenced_policies(body.get(key)):
+                    need(item, key, name, "policies")
+            for name in body.get("knowledge") or []:
+                need(item, "knowledge base", name, "knowledge-bases")
+            for index, spec in enumerate(body.get("tools") or []):
+                at = f"tools[{index}]"
+                kind = spec.get("kind") if isinstance(spec, dict) else None
+                if kind == "table":
+                    need(item, f"{at} table", spec.get("resource"), "resources")
+                elif kind == "flow":
+                    need(item, f"{at} flow", spec.get("flow"), "flows")
+                elif kind == "agent":
+                    need(item, f"{at} agent", spec.get("agent"), "agents")
+                    if spec.get("agent") == item.key:
+                        problems.append(Problem(item.label, f"{at}: an agent can't hand work to itself"))
+                elif kind in ("notion", "mcp") or (kind == "web_search" and spec.get("connection")):
+                    need(item, f"{at} connection", spec.get("connection"), "connections")
+                for name in referenced_policies(spec.get("policy") if isinstance(spec, dict) else None):
+                    need(item, f"{at} policy", name, "policies")
         elif item.kind in ("subscriptions", "schedules", "inbound-hooks") and body.get("target_type") == "flow":
             need(item, "target flow", body.get("target"), "flows")
         elif item.kind == "flows" and isinstance(item, Flow):

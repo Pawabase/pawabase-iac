@@ -13,8 +13,8 @@ from pawabase_server.routes.identity.admin import RoleBody  # noqa: E402
 from pawabase_server.routes.platform.definitions import KINDS as SERVER_KINDS  # noqa: E402
 
 from pawabase_iac import (  # noqa: E402
-    Bucket, Flow, InboundHook, MailTemplate, P, Policy, Role, Route, Schedule, Schema, String, Subscription, Table, Transformer, Webhook,
-    blocks, crud, ctx, every,
+    Agent, Bucket, Connection, Flow, InboundHook, KnowledgeBase, MailTemplate, P, Policy, Role, Route, Schedule, Schema, String, Subscription,
+    Table, Webhook, blocks, crud, ctx, every, tools,
 )
 from pawabase_iac.flows.catalogue import BLOCKS  # noqa: E402
 from pawabase_iac.kinds import KINDS  # noqa: E402
@@ -34,7 +34,6 @@ def samples():
     return [
         Role("teacher", permissions=["grades.write"]),
         Schema("Address", fields=[String("city")]),
-        Transformer("t", omit=["x"], case="camel"),
         mine,
         Table("orders", fields=[String("user_id")], operations=crud(mine), owner_field="user_id"),
         flow,
@@ -45,6 +44,9 @@ def samples():
         Webhook("hook", url="https://example.com/h"),
         InboundHook("inbound", event="e", verification="none"),
         Schedule("sched", run=flow, interval=every(minutes=1)),
+        Connection.mcp("github", "https://api.githubcopilot.com/mcp/", secret="GITHUB_TOKEN"),
+        KnowledgeBase("help", embedding_model="embed", policy="authenticated"),
+        Agent("helper", model="chat", instructions="Be brief.", knowledge=["help"], tools=[tools.web_search(), tools.mcp("github")], limits={"max_steps": 6}),
     ]
 
 
@@ -60,7 +62,8 @@ def test_body_fields_match_the_servers_request_model(item):
     # The server has optional fields we do not manage from code (draft/design/favorite, a branch's autosave): they keep their defaults.
     extra_on_server = theirs - ours
     assert not (ours - theirs), f"{item.kind}: sent but the server has no such field: {sorted(ours - theirs)}"
-    assert extra_on_server <= {"design", "draft", "favorite", "apply_schema", "provision_table"}, f"{item.kind}: server fields we do not send: {sorted(extra_on_server)}"
+    # ``transformer`` is a field the server still accepts for old clients and ignores: transformers were removed.
+    assert extra_on_server <= {"design", "draft", "favorite", "apply_schema", "provision_table", "transformer"}, f"{item.kind}: server fields we do not send: {sorted(extra_on_server)}"
     model.model_validate(item.body())  # the server's own request model accepts it
 
 

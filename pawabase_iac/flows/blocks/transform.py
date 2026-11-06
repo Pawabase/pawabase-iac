@@ -57,13 +57,13 @@ def group(value: Any, field: str | Expr) -> Block:
 
 
 def map(value: Any, transformer: Any) -> Block:
-    """Applies a transformer (inline, stored, or Python) to a value.
+    """Applies an inline or Python transformer to a value.
 
     Handles: next. Connect with ``node.on("handle") >> other`` or ``node.<handle> >> other``.
 
     Args:
         value: json, required.
-        transformer: json, required. Definition or transformer name.
+        transformer: json, required. Inline definition or a Python transformer name.
     """
     return Block('transform.map', {'value': value, 'transformer': transformer})
 

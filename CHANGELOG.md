@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0
+
+Agents, knowledge bases and connections as code, vector search on tables, and the server's current flow blocks.
+
+* New definitions: `Agent`, `KnowledgeBase` and `Connection` (`Connection.notion`, `.mcp`, `.web_search`), with `tools.table`, `.flow`, `.web_fetch`, `.web_search`, `.notion`, `.mcp`, `.agent`, `.code`, `.image`, `.x_search` and `.tool_search` for what an agent can use. Checked offline: tools, limits, policies and every reference (tables, flows, connections, knowledge bases, other agents), including an agent handing work to itself.
+* `Vector` and `Embed` fields and `hnsw` / `ivfflat` indexes with a `metric`, for searching a table by meaning.
+* The flow builder follows the server: 76 blocks in 28 families, now with `blocks.ai` (`chat`, `embed`, `search`, `answer`, `agent`, `knowledge_search`, `knowledge_add`). Flow settings that name an agent, a knowledge base or a table are checked against your definitions.
+* **Removed:** `Transformer` and the `transformer=` setting on `Table` and `Route`. The server removed response transformers; the setting was already ignored.
+* The block generator handles block names with more than one dot after the family (`ai.knowledge.add` is `blocks.ai.knowledge_add`).
+
 ## 0.1.0
 
 First release.

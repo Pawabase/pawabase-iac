@@ -12,6 +12,7 @@ def test_every_block_has_a_function():
     for key in BLOCKS:
         family, name = key.split(".", 1)
         module = import_module(f"pawabase_iac.flows.blocks.{family}")
+        name = name.replace(".", "_")
         function = getattr(module, name + "_" if keyword.iskeyword(name) else name)
         assert function.__doc__, key
 

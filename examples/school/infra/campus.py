@@ -1,7 +1,7 @@
 """Life around lessons: the library, buses, the sick bay, discipline, announcements, the calendar and messages."""
 
 from infra.academics import grade_levels, sections
-from infra.common import family_fields, public_announcement
+from infra.common import family_fields
 from infra.people import students
 from infra.policies import (
     academic, health_confidential, health_staff, library_staff, management, staff, staff_or_family, transport_staff,
@@ -148,7 +148,6 @@ announcements = Table(
         String("author_id"),
     ],
     operations={**read_only("authenticated"), "create": Allow(management), "update": Allow(management), "delete": Allow(management)},
-    transformer=public_announcement,
     relations=[BelongsTo("section", sections, "section_id"), BelongsTo("grade_level", grade_levels, "grade_level_id")],
     indexes=[Index("audience", Desc("publish_at")), Index("pinned")],
     realtime=True,

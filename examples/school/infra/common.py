@@ -1,6 +1,6 @@
 """Pieces several tables share."""
 
-from pawabase_iac import Array, Schema, String, Transformer
+from pawabase_iac import Array, Schema, String
 
 #: Rows about a student carry who the student is and who their guardians are, so one policy can answer "is this yours?".
 family_fields = [
@@ -20,5 +20,3 @@ address = Schema(
     ],
 )
 
-#: Announcements are shown to everyone, but who wrote one is the school's business.
-public_announcement = Transformer("public_announcement", omit=["author_id"])

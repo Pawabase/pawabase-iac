@@ -53,7 +53,8 @@ def ident(name: str) -> str:
 
 
 def func(key: str) -> str:
-    return ident(key.split(".", 1)[1])
+    """``ai.knowledge.add`` is ``blocks.ai.knowledge_add``: a block with more than one dot after its family keeps the rest, joined."""
+    return ident(key.split(".", 1)[1].replace(".", "_"))
 
 
 def annotation(spec: dict) -> str:

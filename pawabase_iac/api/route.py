@@ -25,7 +25,6 @@ class Route(Definition):
     input_fields: list[dict[str, Any]] | None = None
     input_schema: Any = None
     response_schema: Any = None
-    transformer: Any = None
     handler_type: Literal["flow", "function"] = "flow"
     rate_limit: dict[str, int] = field(default_factory=dict)
     cache_ttl: int = 0
