@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1
+
+Environment settings as code.
+
+* New `EnvironmentSettings` and `Auth` definitions configure an environment's sign-in rules (password policy, lockout, sessions, MFA, directory options, redirect URLs) and general settings (CORS origins, timezone, currency, locale, realtime channels). `Secret` sets an environment secret from your code or an environment variable.
+* Plan and deploy compare and apply them like any other definition; flow validation and reference checks were tightened.
+
 ## 0.2.0
 
 Agents, knowledge bases and connections as code, vector search on tables, and the server's current flow blocks.

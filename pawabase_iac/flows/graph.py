@@ -139,21 +139,7 @@ def graph_problems(graph: dict[str, Any]) -> list[str]:
 
 
 def layout(order: list[str], edges: list[tuple[str, str, str]], trigger_ids: list[str]) -> dict[str, dict[str, int]]:
-    """Columns by distance from a trigger, so the flow opens in Studio already readable."""
-    depth = {t: 0 for t in trigger_ids}
-    queue = deque(trigger_ids)
-    while queue:
-        current = queue.popleft()
-        for source, target, _ in edges:
-            if source == current and target not in depth:
-                depth[target] = depth[current] + 1
-                queue.append(target)
-    for node_id in order:
-        depth.setdefault(node_id, max(depth.values(), default=0) + 1)
-    rows: dict[int, int] = {}
-    out: dict[str, dict[str, int]] = {}
-    for node_id in order:
-        column = depth[node_id]
-        out[node_id] = {"x": column * 300, "y": rows.get(column, 0) * 150}
-        rows[column] = rows.get(column, 0) + 1
-    return out
+    """Every block at the same spot, which is what Studio expects of a flow made by code: it notices, arranges the blocks top to bottom
+    with their real sizes, and fits the picture to the screen. (A flow laid out here in a long row opened off-screen, and Studio, seeing
+    blocks that do not overlap, left it that way.)"""
+    return {node_id: {"x": 0, "y": 0} for node_id in order}

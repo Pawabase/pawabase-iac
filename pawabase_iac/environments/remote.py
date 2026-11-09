@@ -29,6 +29,8 @@ class RemoteEnvironment:
 
     def _base(self, kind: str) -> str:
         # User administration (and so roles) lives under /auth in the management API.
+        if kind == "environment":
+            return f"/platform/v1/envs/{self.name}"
         return f"/platform/v1/envs/{self.name}/{'auth/roles' if kind == 'roles' else kind}"
 
     def _send(self, method: str, path: str, body: dict[str, Any] | None = None) -> Any:
@@ -54,6 +56,8 @@ class RemoteEnvironment:
         return None if response.status_code == 204 or not response.content else response.json()
 
     def list(self, kind: str) -> list[dict[str, Any]]:
+        if kind == "environment":  # the environment itself is the one row
+            return [{**(self._send("GET", self._base(kind)) or {}), "name": "settings"}]
         data = self._send("GET", self._base(kind))
         return list(data.get("data", []) if isinstance(data, dict) else data or [])
 
@@ -61,11 +65,19 @@ class RemoteEnvironment:
         # Roles have one verb for both: PUT creates or replaces by name.
         if kind == "roles":
             return self._send("PUT", self._base(kind), body) or {}
+        if kind == "environment":
+            return self._send("PATCH", self._base(kind), {k: v for k, v in body.items() if k != "name"}) or {}
+        if kind == "secrets":
+            return self._send("PUT", f"{self._base(kind)}/{body['name']}", {k: v for k, v in body.items() if k != "name"}) or {}
         return self._send("POST", self._base(kind), body) or {}
 
     def replace(self, kind: str, live: dict[str, Any], body: dict[str, Any]) -> dict[str, Any]:
         if kind == "roles":
             return self._send("PUT", self._base(kind), body) or {}
+        if kind == "environment":
+            return self._send("PATCH", self._base(kind), {k: v for k, v in body.items() if k != "name"}) or {}
+        if kind == "secrets":
+            return self._send("PUT", f"{self._base(kind)}/{body['name']}", {k: v for k, v in body.items() if k != "name"}) or {}
         return self._send("PUT", f"{self._base(kind)}/{address(kind, live)}", body) or {}
 
     def migrate(self, resource: str) -> list[str]:
@@ -74,4 +86,6 @@ class RemoteEnvironment:
         return list(answer.get("statements", []))
 
     def delete(self, kind: str, live: dict[str, Any]) -> None:
+        if kind == "environment":  # it always exists
+            return
         self._send("DELETE", f"{self._base(kind)}/{address(kind, live)}")

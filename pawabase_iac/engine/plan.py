@@ -101,6 +101,8 @@ def build_plan(items: list[Definition], env: Environment, mode: Mode = "merge", 
     for kind in reversed(ORDER):
         for key, live in live_by_kind[kind].items():
             if key not in wanted_keys[kind]:
+                if kind == "environment":  # always there: not defining it leaves it as it is
+                    continue
                 changes.append(Change("delete" if mode == "override" else "extra", kind, key, {}, live))
     return Plan(mode, changes)
 

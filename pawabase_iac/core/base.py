@@ -15,7 +15,7 @@ IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,62}$")
 
 #: Kinds in the order they must exist: a definition may refer to the ones before it.
 ORDER = (
-    "roles", "schemas", "policies", "resources", "flows", "buckets", "mail-templates",
+    "environment", "secrets", "roles", "schemas", "policies", "resources", "flows", "buckets", "mail-templates",
     "routes", "subscriptions", "webhooks", "inbound-hooks", "schedules", "connections", "knowledge-bases", "agents",
 )  # fmt: skip
 

@@ -6,6 +6,7 @@ from .access import Role
 from .agents import Agent, Connection, KnowledgeBase
 from .api import Route
 from .core.base import ORDER, Definition
+from .environment import EnvironmentSettings, Secret
 from .events import InboundHook, Schedule, Subscription, Webhook
 from .flows import Flow
 from .mail import MailTemplate
@@ -15,6 +16,6 @@ from .tables import Schema, Table
 
 KINDS: dict[str, type[Definition]] = {
     cls.kind: cls
-    for cls in (Role, Schema, Policy, Table, Flow, Bucket, MailTemplate, Route, Subscription, Webhook, InboundHook, Schedule, Connection, KnowledgeBase, Agent)
+    for cls in (EnvironmentSettings, Secret, Role, Schema, Policy, Table, Flow, Bucket, MailTemplate, Route, Subscription, Webhook, InboundHook, Schedule, Connection, KnowledgeBase, Agent)
 }
 assert set(KINDS) == set(ORDER), set(ORDER) ^ set(KINDS)

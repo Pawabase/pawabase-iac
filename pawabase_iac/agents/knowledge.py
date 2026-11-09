@@ -15,7 +15,7 @@ class KnowledgeBase(Definition):
 
         KnowledgeBase("help", embedding_model="embed", policy="authenticated")
 
-    The documents themselves are data, added with the SDK's ``ai.knowledge.add`` (or Studio), not defined in code.
+    The documents themselves are data, added with the SDK's ``ai.knowledge.add_document`` (or Studio), not defined in code.
     ``embedding_model`` is an embedding model of the environment; it can't change once documents have been read with it.
     """
 

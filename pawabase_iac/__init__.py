@@ -11,6 +11,7 @@ from .access import Role
 from .agents import Agent, Connection, KnowledgeBase, tools
 from .api import Route
 from .core import Definition, collecting, env
+from .environment import Auth, EnvironmentSettings, Secret
 from .events import InboundHook, Schedule, Subscription, Webhook, every
 from .expr import ALLOW, DENY, P, Condition, ctx, all_of, any_of, not_
 from .flows import Block, Flow, Node, blocks
@@ -23,7 +24,7 @@ from .tables import (
 )  # fmt: skip
 
 __all__ = [
-    "ALLOW", "DENY", "JSON", "P", "ULID", "URL", "UUID", "Agent", "Allow", "Array", "BelongsTo", "Block", "Boolean", "Bucket", "Condition", "Connection",
+    "ALLOW", "DENY", "Auth", "EnvironmentSettings", "Secret", "JSON", "P", "ULID", "URL", "UUID", "Agent", "Allow", "Array", "BelongsTo", "Block", "Boolean", "Bucket", "Condition", "Connection",
     "Date", "DateTime", "Definition", "Deny", "Desc", "Email", "Embed", "Flow", "HasMany", "InboundHook", "Index", "Integer", "KnowledgeBase", "MailTemplate", "Node",
     "Number", "Object", "Policy", "RateLimit", "Ref", "Resource", "Role", "Route", "Schedule", "Schema", "String", "Subscription", "Table",
     "Text", "Vector", "Webhook", "Where", "__version__", "all_of", "any_of", "blocks", "collecting", "crud", "ctx", "env", "every",

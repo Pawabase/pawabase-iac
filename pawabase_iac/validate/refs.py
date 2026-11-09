@@ -41,6 +41,17 @@ def _known(items: list[Definition], existing: dict[str, set[str]] | None, kind: 
     return {i.key for i in items if i.kind == kind} | (existing or {}).get(kind, set())
 
 
+#: Flow blocks whose settings decide who may do something. A `role` key in other blocks' data (a column called role) is just data.
+ACCESS_BLOCKS = {"control.if", "control.switch", "policy.check", "trigger.http", "auth.require", "transform.filter", "control.while"}
+
+
+def _access_part(item: Definition, body: dict) -> Any:
+    if item.kind != "flows":
+        return body
+    nodes = (body.get("definition") or {}).get("nodes") or []
+    return [n["data"].get("config") for n in nodes if n["data"].get("block") in ACCESS_BLOCKS]
+
+
 def check(items: list[Definition], existing: dict[str, set[str]] | None = None) -> list[Problem]:
     """Every problem in *items*, in the order a person should fix them. An empty list means the project is valid.
 
@@ -74,9 +85,9 @@ def check(items: list[Definition], existing: dict[str, set[str]] | None = None) 
     for item in items:
         body = item.body(resolve=False)
         if defined_roles or known_roles:
-            roles_used, permissions_used = referenced_access(body)
+            roles_used, permissions_used = referenced_access(_access_part(item, body))
             if item.kind != "roles":
-                for role in sorted(roles_used - known_roles - {"anon", "authenticated"}):
+                for role in sorted(r for r in roles_used - known_roles - {"anon", "authenticated"} if "{{" not in r):
                     if defined_roles:
                         problems.append(Problem(item.label, f"role {role!r} is not defined (roles: {', '.join(sorted(known_roles)) or 'none'})"))
                 if judge_permissions:
