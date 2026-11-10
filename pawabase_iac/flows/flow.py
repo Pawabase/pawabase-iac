@@ -37,10 +37,12 @@ class Flow(Definition):
         enabled: bool = True,
         timeout: float = 60.0,
         record_runs: bool = True,
+        tags: list[str] | None = None,
         definition: dict[str, Any] | None = None,
     ) -> None:
         self.name, self.description, self.enabled = name, description, enabled
         self.timeout, self.record_runs = timeout, record_runs
+        self.tags = list(tags or [])
         self.nodes: dict[str, Node] = {}
         self.edges: list[tuple[str, str, str]] = []
         self._raw = copy.deepcopy(definition) if definition is not None else None
@@ -111,7 +113,7 @@ class Flow(Definition):
         }
 
     def body(self, *, resolve: bool = True) -> dict[str, Any]:
-        return {
+        body: dict[str, Any] = {
             "name": self.name,
             "description": self.description,
             "definition": self.graph(),
@@ -119,6 +121,9 @@ class Flow(Definition):
             "timeout": self.timeout,
             "record_runs": self.record_runs,
         }
+        if self.tags:  # only sent when set, so a server without flow tags still accepts the flow
+            body["tags"] = self.tags
+        return body
 
     def problems(self) -> list[str]:
         out: list[str] = []

@@ -32,3 +32,12 @@ def test_deploy_sets_it_once_and_a_secret_is_not_compared(monkeypatch):
     apply_plan(plan, registry.items, emulated)
     again = build_plan(registry.items, emulated)
     assert not again.pending
+
+
+def test_flow_tags_are_sent_only_when_set():
+    from pawabase_iac import Flow
+
+    plain = Flow("plain_tags_check")
+    tagged = Flow("tagged_tags_check", tags=["billing", "orders"])
+    assert "tags" not in plain.body()
+    assert tagged.body()["tags"] == ["billing", "orders"]

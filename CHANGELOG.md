@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+* `Flow(..., tags=[...])` labels a flow; tags are sent only when set.
+
 ## 0.2.1
 
 Environment settings as code.
