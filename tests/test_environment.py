@@ -41,3 +41,14 @@ def test_flow_tags_are_sent_only_when_set():
     tagged = Flow("tagged_tags_check", tags=["billing", "orders"])
     assert "tags" not in plain.body()
     assert tagged.body()["tags"] == ["billing", "orders"]
+
+
+def test_mail_template_design_is_sent_only_when_set():
+    from pawabase_iac import MailTemplate
+
+    doc = {"type": "doc", "content": [{"type": "paragraph"}]}
+    designed = MailTemplate("receipt", subject="Hi", html="<p>Hi</p>", design={"doc": doc, "theme": {}})
+    assert designed.problems() == []
+    assert designed.body()["design"] == {"doc": doc, "theme": {}}
+    assert "design" not in MailTemplate("plain", subject="Hi", html="<p>Hi</p>").body()
+    assert MailTemplate("bad", subject="Hi", html="<p>Hi</p>", design={"theme": {}}).problems()

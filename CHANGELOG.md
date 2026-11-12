@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.3
+
+* `MailTemplate(..., design={"doc": ..., "theme": ...})` carries the document of Studio's mail editor, so a template deployed from code opens in Studio as separate blocks. Without it Studio shows the template's HTML as one HTML block. `html` is still what is sent, and `design` is sent only when set.
+
 ## 0.2.2
 
 * `Flow(..., tags=[...])` labels a flow; tags are sent only when set.

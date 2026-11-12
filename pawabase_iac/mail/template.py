@@ -31,6 +31,9 @@ class MailTemplate(Definition):
     tags: list[str] = field(default_factory=list)
     folder: str = ""
     variables: list[dict[str, Any]] = field(default_factory=list)
+    #: The document of Studio's mail editor, ``{"doc": ..., "theme": ...}``. With it the template opens in Studio as separate blocks;
+    #: without it Studio shows the html as one HTML block. ``html`` stays what is sent, so keep the two in step.
+    design: dict[str, Any] | None = None
 
     def problems(self) -> list[str]:
         out = check_name(self.name, "mail template")
@@ -40,4 +43,12 @@ class MailTemplate(Definition):
             out.append("preheader is at most 255 characters")
         if len(self.category) > 32 or len(self.folder) > 64:
             out.append("category is at most 32 characters and folder at most 64")
+        if self.design is not None and not (isinstance(self.design, dict) and isinstance(self.design.get("doc"), dict)):
+            out.append('design is the editor\'s document: {"doc": {...}, "theme": {...}}')
+        return out
+
+    def body(self, *, resolve: bool = True) -> dict[str, Any]:
+        out = super().body(resolve=resolve)
+        if self.design is None:
+            out.pop("design", None)  # sent only when set, so a template without one compares as before
         return out
