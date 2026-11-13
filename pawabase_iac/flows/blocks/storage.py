@@ -20,8 +20,8 @@ def delete(bucket: str | Expr, key: str | Expr) -> Block:
     return Block('storage.delete', {'bucket': bucket, 'key': key})
 
 
-def put(bucket: str | Expr, key: str | Expr, content: Any, *, content_type: str | Expr | None = None) -> Block:
-    """Writes text or JSON to a bucket.
+def put(bucket: str | Expr, key: str | Expr, content: Any, *, content_type: str | Expr | None = None, encoding: Literal['text', 'base64', 'data_url'] | Expr | None = None) -> Block:
+    """Writes a file to a bucket: text or JSON, or binary (an image, a PDF) sent as base64 or a data URL.
 
     Handles: next. Connect with ``node.on("handle") >> other`` or ``node.<handle> >> other``.
 
@@ -29,9 +29,10 @@ def put(bucket: str | Expr, key: str | Expr, content: Any, *, content_type: str 
         bucket: string, required.
         key: string, required.
         content: json, required.
-        content_type: string. default 'text/plain'.
+        content_type: string. default ''.
+        encoding: string. one of 'text', 'base64', 'data_url'; default 'text'.
     """
-    return Block('storage.put', {'bucket': bucket, 'key': key, 'content': content, 'content_type': content_type})
+    return Block('storage.put', {'bucket': bucket, 'key': key, 'content': content, 'content_type': content_type, 'encoding': encoding})
 
 
 def read(bucket: str | Expr, key: str | Expr) -> Block:

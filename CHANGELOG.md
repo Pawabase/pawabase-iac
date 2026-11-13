@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.4
+
+* `blocks.storage.put(..., encoding="data_url")` (or `"base64"`) stores a binary file, such as an image picked in a browser, instead of only text or JSON. With a data URL the file's type comes from the URL unless `content_type` is given. The bucket's accepted types and size limit still apply. The block's output now also has `url`, the object's address on the gateway. Needs Pawabase server 0.13.0 or later.
+
 ## 0.2.3
 
 * `MailTemplate(..., design={"doc": ..., "theme": ...})` carries the document of Studio's mail editor, so a template deployed from code opens in Studio as separate blocks. Without it Studio shows the template's HTML as one HTML block. `html` is still what is sent, and `design` is sent only when set.
