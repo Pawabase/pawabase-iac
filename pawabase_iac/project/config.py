@@ -8,6 +8,7 @@ import sys
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from ..core.base import Definition, collecting
 
@@ -84,6 +85,11 @@ def _module_names(settings: Settings) -> list[str]:
 
 
 def load_project(settings: Settings) -> list[Definition]:
+    """Import the project's definition files and return everything they defined (see :func:`load_project_parts`)."""
+    return load_project_parts(settings)[0]
+
+
+def load_project_parts(settings: Settings) -> tuple[list[Definition], list[Any]]:
     """Import the project's definition files and return everything they defined, in the order it was defined.
 
     The project root is put on ``sys.path`` and the files are imported as modules (``infra.tables``), so ``from infra.policies import mine``
@@ -102,7 +108,7 @@ def load_project(settings: Settings) -> list[Definition]:
                     raise
                 except Exception as error:
                     raise ConfigError(f"{name.replace('.', '/')}.py failed to import: {type(error).__name__}: {error}") from error
-            return list(registry.items)
+            return list(registry.items), list(registry.parts)
     finally:
         sys.path.remove(str(settings.root))
         for module in set(sys.modules) - before:  # so loading again runs the files again

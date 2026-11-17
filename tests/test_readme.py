@@ -19,6 +19,6 @@ def test_the_readme_has_examples():
 def test_each_example_runs_and_each_definition_it_makes_is_valid(index):
     with collecting() as registry:
         exec(compile(BLOCKS[index], f"README block {index}", "exec"), {})
-    assert registry.items, "the example defines nothing"
+    assert registry.items or registry.parts, "the example defines nothing"
     for item in registry.items:
         assert item.problems() == [], (item.label, item.problems())

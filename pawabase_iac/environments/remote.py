@@ -55,6 +55,25 @@ class RemoteEnvironment:
             raise ApiError(response.status_code, str(code), str(message), detail)
         return None if response.status_code == 204 or not response.content else response.json()
 
+    def _send_form(self, method: str, path: str, *, files: dict[str, Any], data: dict[str, str]) -> Any:
+        """A multipart request (a blueprint zip and its fields), with the same error handling as :meth:`_send`."""
+        try:
+            response = self.http.request(method, path, files=files, data=data, timeout=300.0)
+        except httpx.HTTPError as error:
+            raise ApiError(0, "unreachable", f"Could not reach {self.url}: {type(error).__name__}") from error
+        if response.status_code >= 400:
+            try:
+                body = response.json()
+            except ValueError:
+                body = {}
+            detail = body.get("detail", body) if isinstance(body, dict) else body
+            if isinstance(detail, dict) and detail.get("where"):
+                message = f"{detail.get('message', 'refused')} at {detail['where']}: {detail.get('problem', '')}"
+            else:
+                message = (detail.get("message") if isinstance(detail, dict) else None) or str(detail) or f"HTTP {response.status_code}"
+            raise ApiError(response.status_code, "", message, detail)
+        return response.json() if response.content else None
+
     def list(self, kind: str) -> list[dict[str, Any]]:
         if kind == "environment":  # the environment itself is the one row
             return [{**(self._send("GET", self._base(kind)) or {}), "name": "settings"}]

@@ -41,13 +41,19 @@ def env(name: str) -> Env:
 
 
 class Registry:
-    """Everything defined while a project is being imported."""
+    """Everything defined while a project is being imported: definitions, and blueprint parts the API kinds don't model."""
 
     def __init__(self) -> None:
         self.items: list[Definition] = []
+        self.parts: list[Any] = []
 
     def add(self, item: Definition) -> None:
         self.items.append(item)
+
+
+def current_registry() -> Registry:
+    """The registry collecting now (what a project's files add to while it is being imported)."""
+    return _active[-1]
 
 
 _active: list[Registry] = [Registry()]

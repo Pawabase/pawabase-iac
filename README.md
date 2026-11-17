@@ -19,7 +19,7 @@ pawabase deploy        # apply it; needs a deploy API key
 
 ## Contents
 
-[Quick start](#quick-start) · [Defining things](#defining-things) · [Policies](#policies) · [Flows](#flows) · [Commands](#commands) · [Deploying](#deploying) · [Emulate](#emulate) · [Using it in CI](#using-it-in-ci) · [Examples](#examples) · [Development](#development) · [Limits](#limits)
+[Quick start](#quick-start) · [Defining things](#defining-things) · [Policies](#policies) · [Flows](#flows) · [Commands](#commands) · [Deploying](#deploying) · [Blueprints](#blueprints) · [Emulate](#emulate) · [Using it in CI](#using-it-in-ci) · [Examples](#examples) · [Development](#development) · [Limits](#limits)
 
 ## Quick start
 
@@ -188,6 +188,8 @@ All **76 flow blocks** the server knows are available as typed functions, one mo
 | `pawabase deploy` | apply the plan (`--dry-run`, `--yes`, `--mode`, `--force-secrets`, `--no-migrate`) |
 | `pawabase emulate` | rehearse a deploy against a simulated environment (`--reset`) |
 | `pawabase whoami` | show the settings and test the API key |
+| `pawabase build` | compile the project into a blueprint zip any Pawabase can install (`-o`, `--name`, `--environment`) |
+| `pawabase install` | build new environments on a Pawabase from a blueprint zip (`--environments`; needs a secret key) |
 
 Shared options: `-e/--env`, `--url`, `--entry`, `--json`. Exit code 0 on success, 1 on a failure or a refusal, 2 when `--yes` was needed but not given.
 
@@ -205,6 +207,46 @@ Shared options: `-e/--env`, `--url`, `--entry`, `--json`. Exit code 0 on success
 **Secrets.** `Webhook` and `InboundHook` secrets are write-only: sent when the definition is created or otherwise changes, never compared. Rotate one with `--force-secrets`.
 
 **How it compares.** The server fills in defaults and ids, so the comparison asks only whether what you wrote is present in what the server returns (an empty value matches a missing one). Fields the server derives when unset (a table's `table` name) are not compared.
+
+## Blueprints
+
+A blueprint is the whole app as a `.zip` of YAML files, with `blueprint.yml` at its root. Any Pawabase can install one into new
+environments (`POST /platform/v1/blueprints/install`), and an environment can be exported as one (`GET /platform/v1/envs/<env>/blueprint.zip`).
+`pawabase build` compiles your project into it:
+
+```
+pawabase build -o store.blueprint.zip --name Store --environment shop
+pawabase install store.blueprint.zip --environments shop
+```
+
+```
+blueprint.yml        # name, variables, and the files it includes
+settings.yml         # EnvironmentSettings: settings and infra
+auth.yml             # EnvironmentSettings: sign-in (methods, providers, emails, branding, bot protection…)
+secrets.yml          # Secret(...)
+access.yml           # Role(...), Policy(...), organization roles
+tables.yml           # Schema(...), Table(...)
+api.yml, storage.yml, events.yml, ai.yml, realtime.yml, operations.yml
+flows/<name>.yml     # one file per Flow
+mail/<name>.yml      # one file per MailTemplate
+```
+
+`env("NAME")` values become `${NAME}` variables, declared in `blueprint.yml`: no credential is written into the zip. Whoever installs
+it supplies them; `pawabase install` reads them from your shell or `.env`.
+
+Parts the definition kinds don't model yet are added as blueprint sections with `BlueprintPart`:
+
+```python
+from pawabase_iac import BlueprintPart, env
+
+BlueprintPart("ai", {"providers": {"openai": {"kind": "openai", "key": env("OPENAI_API_KEY")}},
+                     "models": {"chat": {"provider": "openai", "upstream": "gpt-4o-mini", "policy": "authenticated"}}})
+BlueprintPart("realtime_channels", {"orders:*": {"subscribe": "authenticated", "publish": "service"}})
+BlueprintPart("data", {"products": [{"title": "Lamp", "price": 25}]})
+```
+
+Sections: `ai`, `org_roles`, `org_permissions`, `realtime_channels`, `status_page`, `alarms`, `mail` (the mail kit), `machines`, `keys`,
+`data`, `settings`, `auth`, `infra`. Hand-written blueprint files in a `blueprint/` folder are copied into the zip and included too.
 
 ## Emulate
 

@@ -4,18 +4,22 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
 
 from .. import project as config
 from .._version import __version__
+from ..blueprint import compile_bundle
 from ..core.base import ORDER, Definition
 from ..engine import Plan, apply_plan, build_plan, existing_names, missing_env
 from ..engine.surface import counts, describe
 from ..environments import ApiError, EmulatedEnvironment, RemoteEnvironment
 from ..validate import check
 from .starter import STARTER
+
 
 class CliError(Exception):
     def __init__(self, message: str, code: int = 1) -> None:
@@ -231,6 +235,71 @@ def cmd_whoami(args: argparse.Namespace, out: Out) -> int:
     return 0
 
 
+def cmd_build(args: argparse.Namespace, out: Out) -> int:
+    """Compile the project into a blueprint zip any Pawabase can install."""
+    try:
+        settings = config.load(Path.cwd(), environment=args.env, url=args.url, entry=args.entry)
+        items, parts = config.load_project_parts(settings)
+    except config.ConfigError as error:
+        raise CliError(str(error)) from error
+    validated(items, out)
+    name = args.name or settings.root.name
+    data, summary = compile_bundle(
+        items,
+        parts,
+        name=name,
+        description=args.description or "",
+        version=args.app_version or "",
+        environments=args.environment or None,
+        extra_dir=settings.root / args.blueprint_dir,
+    )
+    target = Path(args.output or f"{re.sub(r'[^A-Za-z0-9_.-]+', '-', name).strip('-') or 'app'}.blueprint.zip")
+    target.write_bytes(data)
+    out.ok(f"Wrote {target} ({len(data) // 1024 or 1} KB, {len(summary['files'])} files).")
+    for section, count in sorted(summary["counts"].items()):
+        out.line(f"  {section:18} {count}")
+    if summary["variables"]:
+        out.line(f"Whoever installs it supplies: {', '.join(summary['variables'])}")
+    if args.json:
+        out.line(json.dumps({"bundle": str(target), **summary}))
+    return 0
+
+
+def cmd_install(args: argparse.Namespace, out: Out) -> int:
+    """Send a blueprint zip to a Pawabase: check it, fill its variables from your shell or .env, and build new environments."""
+    bundle = Path(args.bundle)
+    if not bundle.is_file():
+        raise CliError(f"No file {bundle}. Build one with `pawabase build`.")
+    try:
+        settings = config.load(Path.cwd(), environment=args.env, url=args.url, entry=args.entry)
+    except config.ConfigError as error:
+        raise CliError(str(error)) from error
+    with remote(settings, writing=True) as env:
+        files = {"file": (bundle.name, bundle.read_bytes(), "application/zip")}
+        try:
+            plan = env._send_form("POST", "/platform/v1/blueprints/plan", files=files, data={"variables": "{}"})
+            values = {v["name"]: os.environ[v["name"]] for v in plan["variables"] if v["name"] in os.environ}
+            still = [n for n in plan["missing"] if n not in values]
+            if still:
+                raise CliError(f"Set {', '.join(still)} in your shell or .env: the blueprint needs them and they are never put in the file.")
+            if plan.get("problem"):
+                problem = plan["problem"]
+                raise CliError(f"The blueprint has a problem at {problem['where']}: {problem['message']}")
+            for where in plan.get("inline_credentials") or []:
+                out.warn(f"{where} is written into the blueprint itself; a ${{VARIABLE}} keeps it out of the file.")
+            envs = [e for e in (args.environments or "").split(",") if e.strip()] or None
+            form = {"variables": json.dumps(values), **({"environments": json.dumps(envs)} if envs else {})}
+            result = env._send_form("POST", "/platform/v1/blueprints/install", files=files, data=form)
+        except ApiError as error:
+            raise CliError(explain(error)) from error
+    out.ok(f"Built {', '.join(result['environments'])} from {bundle.name}.")
+    for warning in (result.get("blueprint") or {}).get("warnings", []):
+        out.warn(warning)
+    if args.json:
+        out.line(json.dumps(result))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("-e", "--env", help="environment name (default: pawabase.toml)")
@@ -255,10 +324,23 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("emulate", parents=[common, sync], help="run a deploy against a simulated environment: nothing real is touched")
     p.add_argument("--reset", action="store_true", help="start from an empty emulated environment")
     sub.add_parser("whoami", parents=[common], help="show the settings and test the API key")
+    p = sub.add_parser("build", parents=[common], help="compile the project into a blueprint zip any Pawabase can install")
+    p.add_argument("-o", "--output", help="the zip to write (default: <name>.blueprint.zip)")
+    p.add_argument("--name", help="the app's name (default: the project folder)")
+    p.add_argument("--description", help="a line about the app")
+    p.add_argument("--app-version", help="the app's own version, shown when it is installed")
+    p.add_argument("--environment", action="append", help="an environment it builds by default (repeat for several)")
+    p.add_argument("--blueprint-dir", default="blueprint", help="a folder of hand-written blueprint files to include (default: blueprint)")
+    p = sub.add_parser("install", parents=[common], help="build new environments on a Pawabase from a blueprint zip (needs a secret key)")
+    p.add_argument("bundle", help="the blueprint zip")
+    p.add_argument("--environments", help="comma-separated names of the new environments (default: what the blueprint says)")
     return parser
 
 
-COMMANDS = {"init": cmd_init, "validate": cmd_validate, "plan": cmd_plan, "deploy": cmd_deploy, "emulate": cmd_emulate, "whoami": cmd_whoami}
+COMMANDS = {
+    "init": cmd_init, "validate": cmd_validate, "plan": cmd_plan, "deploy": cmd_deploy, "emulate": cmd_emulate, "whoami": cmd_whoami,
+    "build": cmd_build, "install": cmd_install,
+}  # fmt: skip
 
 
 def main(argv: list[str] | None = None) -> int:

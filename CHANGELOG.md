@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+* `pawabase build` compiles the project into a blueprint zip: `blueprint.yml` and a file per concern (settings, auth, secrets, access, tables, one file per flow and mail template…), which any Pawabase can install into new environments. `env()` values become `${VARIABLES}`, declared in `blueprint.yml`; no credential is written into the zip.
+* `pawabase install BUNDLE.zip` checks a blueprint on the server, fills its variables from your shell or `.env`, and builds new environments from it.
+* `BlueprintPart(section, value)` adds what the definition kinds don't model yet (AI providers and models, organization roles, realtime channels, alarms, the status page, the mail kit, machines, keys, sample data). A `blueprint/` folder of hand-written files is included too.
+* Needs a Pawabase server with blueprint format 2 (`/platform/v1/blueprints/install`). New dependency: PyYAML.
+
 ## 0.2.4
 
 * `blocks.storage.put(..., encoding="data_url")` (or `"base64"`) stores a binary file, such as an image picked in a browser, instead of only text or JSON. With a data URL the file's type comes from the URL unless `content_type` is given. The bucket's accepted types and size limit still apply. The block's output now also has `url`, the object's address on the gateway. Needs Pawabase server 0.13.0 or later.
