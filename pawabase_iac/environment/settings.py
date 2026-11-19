@@ -37,7 +37,7 @@ AUTH_KEYS: dict[str, tuple[type, ...]] = {
     "providers": (dict,), "default_roles": (list,), "emails": (dict,), "lockout_threshold": (int,), "lockout_minutes": (int,), "allowed_email_domains": (list,), "blocked_email_domains": (list,),
     "max_sessions": (int,), "branding": (dict,), "signup_form": (dict,), "legal": (dict,), "directory": (dict,), "password_rules": (dict,), "token_profiles": (list,),
 }
-PASSWORD_POLICIES = ("basic", "strong", "custom")
+PASSWORD_POLICIES = ("basic", "strict")
 PLATFORM_SETTINGS = ("public_docs", "cors_origins", "ip_allowlist", "timezone", "currency", "locale", "description", "maintenance", "realtime")
 CUSTOM_KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 

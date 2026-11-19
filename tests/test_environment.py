@@ -52,3 +52,10 @@ def test_mail_template_design_is_sent_only_when_set():
     assert designed.body()["design"] == {"doc": doc, "theme": {}}
     assert "design" not in MailTemplate("plain", subject="Hi", html="<p>Hi</p>").body()
     assert MailTemplate("bad", subject="Hi", html="<p>Hi</p>", design={"theme": {}}).problems()
+
+
+def test_password_policy_takes_the_values_the_server_accepts():
+    for policy in ("basic", "strict"):
+        assert EnvironmentSettings(auth=Auth(password_policy=policy)).problems() == []
+    for policy in ("strong", "custom", "weak"):
+        assert any("password_policy" in line for line in EnvironmentSettings(auth=Auth(password_policy=policy)).problems())

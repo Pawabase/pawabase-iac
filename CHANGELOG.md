@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+* `validate` checks `auth.password_policy` against the values the server accepts, `basic` and `strict`. It used to reject `strict` and accept `strong` and `custom`, which the server doesn't know.
+
 ## 0.3.0
 
 * `pawabase build` compiles the project into a blueprint zip: `blueprint.yml` and a file per concern (settings, auth, secrets, access, tables, one file per flow and mail template…), which any Pawabase can install into new environments. `env()` values become `${VARIABLES}`, declared in `blueprint.yml`; no credential is written into the zip.
